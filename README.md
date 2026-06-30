@@ -5,6 +5,7 @@
 **UQuestionnaire** 是一款为 Minecraft 基岩版 (BDS) 打造的现代化、高自定义的调查问卷插件。通过本插件，服主可以轻松收集玩家的游戏反馈、活动建议，并通过丰厚的奖励机制鼓励玩家参与填写。
 
 本插件**永久免费且开源**。如果您是付费获取的本插件，请立即退款并举报商家！
+
 🔗 **官方原址/问题反馈**：[GitHub - wuw111/UQuestionnaire](https://github.com/wuw111/UQuestionnaire) | **反馈QQ群**：1097933637
 
 ---
@@ -128,5 +129,5 @@
 ## ⚠️ 注意事项
 
 * **JSON 语法规范**：修改 `questions.json` 时，请务必保证 JSON 格式严格正确（不要漏逗号或多逗号）。如果配置写错，插件会自动检测错误并备份恢复默认配置。
-* **物品奖励发放**：`rewards.items` 采用的是底层的 SNBT 数据。如果您觉得获取 SNBT 太麻烦，强烈建议直接在 `rewards.cmds` 中使用 `/give %name% 物品名 数量` 来发放物品奖励。
+* **物品奖励发放**：`rewards.items` 采用的是底层的 SNBT 数据。如果您觉得获取 SNBT 太麻烦，也可以直接在 `rewards.cmds` 中使用 `/give %name% 物品名 数量` 来发放物品奖励。
 * **KVDatabase 提醒**：答卷数据保存在 `answers_db` 文件夹中。如果您要迁移服务器数据，请务必将整个 `UQuestionnaire` 文件夹一同打包，避免玩家答卷数据丢失。
