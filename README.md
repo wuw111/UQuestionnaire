@@ -29,7 +29,7 @@
 ## 📥 安装与依赖
 
 1. 确保您的服务器已安装 **LiteLoaderBDS** 或 **LeviLamina** 运行环境。
-2. 下载本插件的 `.js` 文件，将其放入服务器的 `plugins` 文件夹中。
+2. **LeviLamina**：下载获得本插件的文件夹（UQuestionnaire），将其放入服务器的 `plugins` 文件夹中。
 3. 重启服务器，插件将自动生成 `plugins/UQuestionnaire/` 文件夹及默认配置文件。
 
 ---
