@@ -7,7 +7,8 @@
 本插件**永久免费且开源**。如果您是付费获取的本插件，请立即退款并举报商家！
 
 🔗 **官方原址/问题反馈**：[GitHub - wuw111/UQuestionnaire](https://github.com/wuw111/UQuestionnaire) | **反馈QQ群**：1097933637
-
+🔗 **问卷本地编辑器**：[Editor](https://wuw111.github.io/wiki/UQuestionnaire/editor.html)
+🔗 **问卷本地分析器**：[即将上线](https://wuw111.github.io/wiki/UQuestionnaire/editor.html)
 ---
 
 ## ✨ 核心特性
