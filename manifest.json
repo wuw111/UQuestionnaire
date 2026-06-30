@@ -1,0 +1,14 @@
+{
+    "entry": "UQuestionnaire.js",
+    "name": "UQuestionnaire",
+    "type": "lse-quickjs",
+    "version": "1.0.0",
+    "author": "wuw111",
+    "description": "UQuestionnaire问卷调查插件",
+    "extraInfo": {},
+    "dependencies": [
+        {
+            "name": "legacy-script-engine-quickjs"
+        }
+    ]
+}
