@@ -1,20 +1,6 @@
-/*-----------------------------------------------------------------------
- UQuestionnaire 调查问卷系统插件
- 作者：wuw111
-
- 【授权声明】
- 本项目基于 AGPL-3.0 协议开源。详细条款、例外情况及授权定义，
- 请参阅项目根目录下的 LICENSE 文件。
-
- 温馨提示：本插件永久免费且开源。若您为下载此插件或解锁其
- 任何功能而付费，即表明您可能已经受骗。
- 请访问官方项目地址以获取最安全、免费的原始版本。
- 官方地址：https://github.com/wuw111/UQuestionnaire
------------------------------------------------------------------------*/
-
 const PLUGIN_NAME = "UQuestionnaire";
-const VERSION = [1, 0, 0];
-const PREFIX = "§e§l[UQuestionnaire问卷]§r ";
+const VERSION = [0, 1, 4];
+const PREFIX = "§e§l[问卷]§r ";
 const DIR_PATH = "plugins/" + PLUGIN_NAME;
 
 if (!File.exists(DIR_PATH)) File.mkdir(DIR_PATH);
@@ -73,7 +59,9 @@ const defaultQuestions = {
             "title": "服务器游戏体验调查问卷",
             "startTime": "2024-01-01 00:00:00",
             "endTime": "2099-12-31 23:59:59",
-            "conditions": { "scoreboards": { "money": 1 } },
+            "conditions": { "scoreboardsMin": { "level": 1 }, "scoreboardsMax": {}, "onlineTimeMin": 0, "onlineTimeMax": null },
+            "push": true,
+            "visible": true,
             "rewards": { "money": 500, "items": [], "cmds": ["tellraw %name% {\"rawtext\":[{\"text\":\"感谢参与体验问卷！\"}]}"] },
             "allowMultiple": false,
             "questions": [
@@ -90,22 +78,6 @@ const defaultQuestions = {
                     "title": "请说明您觉得体验差的原因：",
                     "required": true,
                     "dependsOn": { "qId": "q1", "contains": ["不满意", "垃圾"] }
-                },
-                {
-                    "id": "q3",
-                    "type": "multi",
-                    "title": "您平时在服务器里最喜欢的玩法是？(最多选2项)",
-                    "options": ["极限生存", "自由建筑", "红石科技", "PVP竞技"],
-                    "maxSelect": 2,
-                    "required": false
-                },
-                {
-                    "id": "q4",
-                    "type": "rating",
-                    "title": "如果满分为10分，您愿意给服务器打几分？",
-                    "min": 1,
-                    "max": 10,
-                    "required": true
                 }
             ]
         }
@@ -159,13 +131,39 @@ const Eco = {
 
 function checkConditions(pl, conditions) {
     if (!conditions) return true;
-    if (conditions.scoreboards) {
-        for (let sb in conditions.scoreboards) {
-            let req = conditions.scoreboards[sb];
-            let sc = pl.getScore(sb);
-            if (sc == null || sc < req) return false;
+
+    let sbMin = conditions.scoreboardsMin || conditions.scoreboards || {};
+    for (let sb in sbMin) {
+        let req = sbMin[sb];
+        let sc = pl.getScore(sb);
+        let val = (sc == null || isNaN(sc)) ? 0 : sc;
+        if (val < req) return false;
+    }
+
+    let sbMax = conditions.scoreboardsMax || {};
+    for (let sb in sbMax) {
+        let req = sbMax[sb];
+        let sc = pl.getScore(sb);
+        let val = (sc == null || isNaN(sc)) ? 0 : sc;
+        if (val >= req) return false;
+    }
+    
+    let minTime = conditions.onlineTimeMin !== undefined ? conditions.onlineTimeMin : (conditions.onlineTime || 0);
+    let maxTime = conditions.onlineTimeMax;
+    
+    if (minTime > 0 || (maxTime !== undefined && maxTime !== null && maxTime !== "")) {
+        let getOnlineTimeApi = ll.import("UEssential", "getOnlineTime");
+        if (!getOnlineTimeApi) return false; 
+        
+        let pTime = getOnlineTimeApi(pl.xuid);
+        if (pTime == null || typeof pTime !== "number") return false;
+        
+        if (minTime > 0 && pTime < minTime) return false;
+        if (maxTime !== undefined && maxTime !== null && maxTime !== "") {
+            if (pTime >= parseFloat(maxTime)) return false;
         }
     }
+
     return true;
 }
 
@@ -183,28 +181,21 @@ function checkDepends(answersObj, dependsOn) {
     return true;
 }
 
-function getAvailableQuestionnaires(pl) {
-    let list = [];
+function checkQuestionnaireAvailability(pl, qId, qData) {
     let now = Date.now();
-    let qMap = questionsDb.get("list") || {};
     let status = statusDb.get(pl.xuid) || {};
     
-    for (let qId in qMap) {
-        let q = qMap[qId];
-        if (!q.allowMultiple && status[qId]) continue;
-        
-        let st = parseTime(q.startTime);
-        let et = parseTime(q.endTime);
-        if (st && now < st) continue;
-        if (et && now > et) continue;
-        
-        if (!checkConditions(pl, q.conditions)) continue;
-        
-        list.push({ id: qId, data: q });
-    }
-    return list;
+    if (!qData.allowMultiple && status[qId]) return false;
+    
+    let st = parseTime(qData.startTime);
+    let et = parseTime(qData.endTime);
+    if (st && now < st) return false;
+    if (et && now > et) return false;
+    
+    if (!checkConditions(pl, qData.conditions)) return false;
+    
+    return true;
 }
-
 
 
 function saveProgress(pl, qId, qData, qIndex, answersObj) {
@@ -456,23 +447,37 @@ mc.listen("onJoin", (player) => {
         if (prob == null) prob = 0.5;
         if (Math.random() > prob) return;
         
-        let avails = getAvailableQuestionnaires(pl);
+        let avails = [];
+        let qMap = questionsDb.get("list") || {};
+        for (let qId in qMap) {
+            let q = qMap[qId];
+            if (q.push === false) continue; 
+            if (checkQuestionnaireAvailability(pl, qId, q)) {
+                avails.push({ id: qId, data: q });
+            }
+        }
+        
         if (avails.length > 0) {
             let targetQ = avails[0];
-            
             ansDb.set(`pushed|${targetQ.id}|${pl.xuid}`, "1");
-            
             pl.sendModalForm("§l调查问卷推送通知", `服务器为您匹配了一份新的调查问卷：\n\n§e${targetQ.data.title}§r\n\n是否现在立刻前往填写并获取提交奖励？`, "马上前往", "以后再说", (p, res) => {
-                if (res) {
-                    startQuestionnaire(p, targetQ.id, targetQ.data);
-                }
+                if (res) startQuestionnaire(p, targetQ.id, targetQ.data);
             });
         }
     }, config.get("pushDelayMs") || 10000);
 });
 
 function sendPlayerMenu(pl) {
-    let avails = getAvailableQuestionnaires(pl);
+    let avails = [];
+    let qMap = questionsDb.get("list") || {};
+    for (let qId in qMap) {
+        let q = qMap[qId];
+        if (q.visible === false) continue;
+        if (checkQuestionnaireAvailability(pl, qId, q)) {
+            avails.push({ id: qId, data: q });
+        }
+    }
+    
     if (avails.length === 0) {
         pl.tell(PREFIX + "§e您目前没有需要填写的问卷，或者您不符合推送目标要求。");
         return;
@@ -590,7 +595,7 @@ function cleanUpOrphanData(admin) {
         }
     }
     
-    admin.tell(PREFIX + `§a清理完毕！共清除了 ${deleteCount} 条无效或已被移出配置文件的问卷相关记录（含未完成进度、推送追踪与过期作答数据）。`);
+    admin.tell(PREFIX + `§a清理完毕！共清除了 ${deleteCount} 条无效或已被移出配置文件的问卷相关记录。`);
 }
 
 function exportCSV(admin, qId, qData) {
@@ -656,7 +661,7 @@ function sendAdminExportMenu(pl) {
 mc.listen("onServerStarted", () => {
     let cmd = mc.newCommand("wj", "调查问卷系统后台与主菜单", PermType.Any);
     
-    cmd.setEnum("UWJ_Action", ["admin", "export", "cleanup"]);
+    cmd.setEnum("UWJ_Action", ["admin", "export", "cleanup", "fill"]);
     cmd.optional("action", ParamType.Enum, "UWJ_Action", "UWJ_Action", 1);
     cmd.optional("param", ParamType.String);
     cmd.overload([]);
@@ -695,6 +700,22 @@ mc.listen("onServerStarted", () => {
                 cleanUpOrphanData(pl);
             } else {
                 pl.tell(PREFIX + "§c权限鉴定：您不属于拥有管理员身份的运维人员！");
+            }
+        } else if (act === "fill") {
+            if (results.param) {
+                let qMap = questionsDb.get("list") || {};
+                let qData = qMap[results.param];
+                if (qData) {
+                    if (checkQuestionnaireAvailability(pl, results.param, qData)) {
+                        startQuestionnaire(pl, results.param, qData);
+                    } else {
+                        pl.tell(PREFIX + "§c您当前不符合该问卷的填写条件，或该问卷已过期/已填写过。");
+                    }
+                } else {
+                    pl.tell(PREFIX + "§c找不到指定的问卷ID！");
+                }
+            } else {
+                pl.tell(PREFIX + "§c指令用法：/wj fill [问卷id]");
             }
         } else {
             sendPlayerMenu(pl);
